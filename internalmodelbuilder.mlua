@@ -549,7 +549,27 @@ getitem = function (binder, itemname, comment2apiobj, file)
                 end
               end
             end
-          end              
+          end
+          repeat
+              if i ==1 and itemname == "self" and file.name then
+                  local function nocase(s)
+                      return string.gsub(s, "%a", function (c)
+                          return string.format("[%s%s]", string.lower(c),string.upper(c))
+                      end)
+                  end
+                  -- if first parameter is "self", try hard to get the type
+                  local function_ = binder -- ast of function
+                  local set_ = binder.parent[1] if not set_ or type(set_) ~= "table" then break end -- the setter(set function to table field)
+                  local set_k = set_[1]         if not set_k or type(set_k) ~= "table" then break end -- the setter key
+                  local set_ki = set_k[1]       if not set_ki or type(set_ki) ~= "table" then break end -- the setter key id
+                  local set_ks = set_ki[1]      if not set_ks or type(set_ks) ~= "string" then break end -- the setter key name (table name)
+                  -- if the table name kinda seems like the module name
+                  if file.name and file.name:find(nocase(set_ks),1) then
+                      -- set the type of self as the module
+                      return createitem(itemname,id,apimodel._internaltyperef(file.name))
+                  end
+              end
+          until true
           return createitem(itemname,id)
         end
       end
