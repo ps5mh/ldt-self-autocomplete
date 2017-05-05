@@ -20,3 +20,4 @@ Apply [this patch](https://github.com/ps5mh/ldt-self-autocomplete/commit/be19664
 -- @module YOUR_LUA_MODULE_NAME
 ```
 - make sure YOUR_LUA_MODULE_NAME matches your function parent table
+- return YOUR_LUA_MODULE_NAME at bottom of file
