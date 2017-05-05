@@ -550,26 +550,17 @@ getitem = function (binder, itemname, comment2apiobj, file)
               end
             end
           end
-          repeat
-              if i ==1 and itemname == "self" and file.name then
-                  local function nocase(s)
-                      return string.gsub(s, "%a", function (c)
-                          return string.format("[%s%s]", string.lower(c),string.upper(c))
-                      end)
-                  end
-                  -- if first parameter is "self", try hard to get the type
-                  local function_ = binder -- ast of function
-                  local set_ = binder.parent[1] if not set_ or type(set_) ~= "table" then break end -- the setter(set function to table field)
-                  local set_k = set_[1]         if not set_k or type(set_k) ~= "table" then break end -- the setter key
-                  local set_ki = set_k[1]       if not set_ki or type(set_ki) ~= "table" then break end -- the setter key id
-                  local set_ks = set_ki[1]      if not set_ks or type(set_ks) ~= "string" then break end -- the setter key name (table name)
-                  -- if the table name kinda seems like the module name
-                  if file.name and file.name:find(nocase(set_ks),1) then
-                      -- set the type of self as the module
-                      return createitem(itemname,id,apimodel._internaltyperef(file.name))
-                  end
-              end
-          until true
+          -- try to deduce type of "self" by checking it's parent table type
+          if i == 1 and itemname == "self" and param.type == nil then
+            local parent_table = nil
+            -- a Set looks like "function TABLE:FUNCTION()"
+            if binder.parent.tag == "Set" then parent_table = binder.parent[1][1][1]
+            -- a Table looks like "TABLE={FUNCTION=function(self,...)end}"
+            elseif binder.parent.tag == "Table" then parent_table = binder.parent.parent[1][1] end
+            if parent_table and idto_identifier[parent_table] then
+              return createitem(itemname,id,idto_identifier[parent_table].definition.type)
+            end
+          end
           return createitem(itemname,id)
         end
       end
@@ -677,35 +668,42 @@ end
 local function createvardefinitions(_internalcontent,ast,file,comment2apiobj)
   -- use bindings to get locals and globals definition
   local locals, globals = bindings( ast )
-  
+  -- sort all local identifiers, put "self" at the end, 
+  -- then parser will generate all types for identifiers other than "self" named ones.
+  -- so that we could try to resolve type of "self", by checking it's function parent table type
+  -- as the parent table type is ready, unless it's named self....
+  local noccss = {}
+  for b, noccs in pairs(locals) do for n, occs in pairs(noccs) do
+        table.insert(noccss, {name = n, occurrences = occs, binder = b})
+  end end
+  table.sort(noccss, function(a,b) return a.name ~= "self" and b.name == "self" end)
   -- create locals var
-  for binder, namesAndOccurrences in pairs(locals) do
-    for name, occurrences in pairs(namesAndOccurrences) do
-      -- get item, id 
-      local _item, id = getitem(binder, name,comment2apiobj,file)
-      if id then
-        -- add definition as occurence
-        -- we consider the identifier in the binder as an occurence
-        local _identifierdef = idto_identifier[id]
-        if _identifierdef then
-          table.insert(_item.occurrences, _identifierdef)
-          _identifierdef.definition = _item
-        end
-          
-        -- add occurences
-        for _,occurrence in ipairs(occurrences) do
-          searchtypefield(occurrence.parent, _item,comment2apiobj,file)
-          local _identifier = idto_identifier[occurrence]
-          if _identifier then
-            table.insert(_item.occurrences, _identifier)
-            _identifier.definition = _item 
-          end 
-        end
-      
-        -- add item to block
-        local _block = idto_block[id]
-        table.insert(_block.localvars,{item=_item,scope = {min=0,max=0}})
-      end  
+  for _, info in ipairs(noccss) do
+    local name, occurrences, binder = info.name, info.occurrences, info.binder
+    -- get item, id 
+    local _item, id = getitem(binder, name,comment2apiobj,file)
+    if id then
+      -- add definition as occurence
+      -- we consider the identifier in the binder as an occurence
+      local _identifierdef = idto_identifier[id]
+      if _identifierdef then
+        table.insert(_item.occurrences, _identifierdef)
+        _identifierdef.definition = _item
+      end
+        
+      -- add occurences
+      for _,occurrence in ipairs(occurrences) do
+        searchtypefield(occurrence.parent, _item,comment2apiobj,file)
+        local _identifier = idto_identifier[occurrence]
+        if _identifier then
+          table.insert(_item.occurrences, _identifier)
+          _identifier.definition = _item 
+        end 
+      end
+    
+      -- add item to block
+      local _block = idto_block[id]
+      table.insert(_block.localvars,{item=_item,scope = {min=0,max=0}})
     end
   end
   
