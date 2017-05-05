@@ -13,11 +13,3 @@ I already discussed this [issue](https://www.eclipse.org/forums/index.php/t/1080
 Replace internalmodelbuilder.mlua in eclipse folder, with the one in this repo, you may need [everything](http://www.voidtools.com/) to search files.   
 You may diff the two files to find the main idea of this patch.  
 
-# to make this work, you should also aware
-- add these line on top of your lua file
-```lua
----
--- @module YOUR_LUA_MODULE_NAME
-```
-- make sure YOUR_LUA_MODULE_NAME matches your function parent table
-- return YOUR_LUA_MODULE_NAME at bottom of file
