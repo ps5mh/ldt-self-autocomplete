@@ -557,7 +557,7 @@ getitem = function (binder, itemname, comment2apiobj, file)
             if binder.parent.tag == "Set" then parent_table = binder.parent[1][1][1]
             -- a Table looks like "TABLE={FUNCTION=function(self,...)end}"
             elseif binder.parent.tag == "Table" then parent_table = binder.parent.parent[1][1] end
-            if parent_table and idto_identifier[parent_table] then
+            if parent_table and idto_identifier[parent_table] and idto_identifier[parent_table].definition then
               return createitem(itemname,id,idto_identifier[parent_table].definition.type)
             end
           end
